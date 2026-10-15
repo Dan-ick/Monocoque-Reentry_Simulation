@@ -1,0 +1,46 @@
+################################################################################
+# 3D rarefied hypersonic flow around the BreMo26 monocoque, 120 km, 7.5 km/s
+################################################################################
+
+seed                12345
+dimension           3
+global              gridcut 0.0 comm/sort yes
+
+boundary            o o o
+
+create_box          -3 2.5 -1.5 1.5 -1 1.8
+create_grid         55 30 28
+balance_grid        rcb cell
+
+global              nrho 5.109E17 fnum 2.55E13 surfmax 1000
+
+species             air.species N2 O2 O
+mixture             air N2 O2 O vstream -7500 0 0 temp 360
+mixture             air N2 frac 0.73
+mixture             air O2 frac 0.09
+mixture             air O frac 0.18
+
+read_surf           data.rennwagen
+surf_collide        1 diffuse 300.0 1
+surf_modify         all collide 1
+
+collide             vss air air.vss
+
+create_particles    air n 0
+fix                 in emit/face air xhi ylo yhi zlo zhi twopass
+
+timestep            4.44E-6
+
+# output: settle 0-1000, average 1000-2000 (every 10 steps), write at 2000
+compute             1 grid all all nrho u v w
+compute             2 thermal/grid all all temp press
+fix                 1 ave/grid all 10 100 2000 c_1[*] c_2[*]
+dump                1 grid all 2000 grid.*.dat id xc yc zc f_1[*]
+
+compute             3 surf all all press etot
+fix                 3 ave/surf all 10 100 2000 c_3[*]
+dump                2 surf all 2000 surf.*.dat id v1x v1y v1z v2x v2y v2z v3x v3y v3z f_3[*]
+
+stats               100
+stats_style         step cpu np nattempt ncoll nscoll nscheck
+run                 2000
